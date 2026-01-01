@@ -91,13 +91,27 @@ def main():
                 analyze_narrative(config.DEFAULT_SEARCH_QUERY, db)
                 LAST_DEEP_DIVE = time.time()
             
-            # 3. Hourly Profiler (scrp3) - Check every hour
-            if now - LAST_PROFILE > PROFILE_INTERVAL:
-                target = PROFILE_TARGETS[profile_idx % len(PROFILE_TARGETS)]
-                print(f"\n[*] [SQUAD] Triggering Hourly Profile for {target} (Scraper 3)...")
-                profile_user(target, db)
-                profile_idx += 1
-                LAST_PROFILE = time.time()
+            # 3. Sentinel Profiler (scrp3) - Priority: Flagged Subjects -> Routine Patrol
+            # Check for high-priority suspects from detection layers
+            suspect_data = db.redis.zpopmax(config.REDIS_SUSPECT_QUEUE_KEY)
+            
+            target_to_profile = None
+            
+            if suspect_data:
+                # suspect_data is [(member, score)]
+                target_handle = suspect_data[0][0]
+                score = suspect_data[0][1]
+                print(f"\n[*] [SQUAD] 🚨 INTERCEPT: High-risk suspect detected: {target_handle} (Score: {score})")
+                target_to_profile = target_handle
+            elif now - LAST_PROFILE > PROFILE_INTERVAL:
+                 # Fallback to routine patrol
+                 target_to_profile = PROFILE_TARGETS[profile_idx % len(PROFILE_TARGETS)]
+                 print(f"\n[*] [SQUAD] Triggering Routine Patrol Profile for {target_to_profile} (Scraper 3)...")
+                 profile_idx += 1
+                 LAST_PROFILE = time.time()
+            
+            if target_to_profile:
+                profile_user(target_to_profile, db)
 
             # 4. Periodic Cleanup (every cycle)
             cleanup_old_json_files(max_age_hours=1)
