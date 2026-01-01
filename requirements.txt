@@ -1,0 +1,30 @@
+playwright
+redis
+psycopg2-binary
+sqlalchemy
+pgvector
+schedule
+streamlit
+pandas
+textblob
+plotly
+networkx
+
+# Backend API
+fastapi
+uvicorn[standard]
+python-multipart
+python-dotenv
+
+# Machine Learning & NLP
+sentence-transformers
+scikit-learn
+hdbscan
+numpy
+matplotlib
+
+# Utilities
+python-dateutil
+watchdog
+httpx
+jinja2

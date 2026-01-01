@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector extension
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: sentinel_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: sentinel_pass
+      POSTGRES_DB: sentinel_core
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # Redis for caching and message streaming
+  redis:
+    image: redis:alpine
+    container_name: sentinel_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:

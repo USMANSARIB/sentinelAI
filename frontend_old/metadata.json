@@ -1,0 +1,5 @@
+{
+  "name": "NarrativeSentry MVP",
+  "description": "A high-performance cyber-threat intelligence dashboard for narrative detection, bot identification, and coordinated attack analysis. Features real-time spike monitoring, community graph visualization, and AI-driven advisory countermeasures.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,7 @@
+{
+  "name": "SentinelGraph - CIB Detection Platform",
+  "description": "A sophisticated landing and intelligence dashboard for SentinelGraph, a hybrid event-driven pipeline designed to detect and analyze coordinated inauthentic behavior on social networks.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

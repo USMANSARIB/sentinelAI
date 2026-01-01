@@ -1,0 +1,135 @@
+import time
+import json
+from textblob import TextBlob
+from db_client import SentinelDB
+import config
+import schedule
+from datetime import datetime, timedelta
+
+# Import refactored layers
+from scrp2 import analyze_narrative
+from scrp3 import profile_user
+
+class SentinelEngine:
+    def __init__(self):
+        self.db = SentinelDB()
+        self.running = True
+        self.recent_tweets = [] # Store (timestamp, tweet_data) for velocity calculation
+        print("[SYSTEM] Sentinel Engine Online. Monitoring Redis Stream...")
+
+    def process_stream(self):
+        """
+        Reads from Redis Stream, analyzes sentiment, and archives to SQLite.
+        This is the 'Main Loop' of the intelligence system.
+        """
+        # Remove old tweets from recent_tweets list
+        cutoff_time = datetime.now() - timedelta(minutes=1)
+        self.recent_tweets = [t for t in self.recent_tweets if t[0] > cutoff_time]
+
+        # Read new messages from the stream
+        # Read from the last processed ID in a real system. For now, we fetch a batch.
+        # This approach of using '0-0' and then processing might re-process.
+        # In a real system, you'd manage the last_id from a persistent store or Redis.
+        # For simplicity, we'll read a batch and rely on the duplicate check further down.
+        response = self.db.redis.xread({config.REDIS_STREAM_KEY: '$'}, count=50, block=1000) # Block for 1 sec if no new messages
+        
+        if not response:
+            return
+
+        stream_key, messages = response[0]
+        
+        processed_count = 0
+        for message_id, data_bytes in messages:
+            # Redis returns bytes, need to decode
+            data = {k.decode('utf-8'): v.decode('utf-8') for k, v in data_bytes.items()}
+            
+            # Simple check if already processed (though `db.is_duplicate` covers this for actual storage)
+            # This is more for in-memory logic to avoid re-adding to recent_tweets.
+            if any(item[1]['tweet_id'] == data.get('tweet_id') for item in self.recent_tweets):
+                continue
+
+            self.recent_tweets.append((datetime.now(), data))
+            self.analyze_spark(data)
+            
+            # Archive to SQLite (db_client handles duplicate check before insert)
+            self.db.archive_tweet(data)
+            processed_count += 1
+            
+        if processed_count > 0:
+            print(f"Processed {processed_count} new tweets from stream.")
+            self.check_for_velocity_spike()
+
+
+    def analyze_spark(self, tweet_data):
+        text = tweet_data.get('text_raw', '')
+        handle = tweet_data.get('handle', '')
+        tweet_id = tweet_data.get('tweet_id', 'N/A')
+        
+        # 1. Sentiment Analysis (TextBlob)
+        blob = TextBlob(text)
+        sentiment = blob.sentiment.polarity # -1.0 to 1.0
+        
+        # 2. Heuristics / Threat Logic
+        alert_triggered = False
+        reason = ""
+        
+        if sentiment < config.SENTIMENT_ALERT_THRESHOLD:
+            reason = f"Significant Negative Sentiment ({sentiment:.2f})"
+            alert_triggered = True
+            
+        if alert_triggered:
+            print(f"[ALERT] [{handle}] - {tweet_id}: {reason}")
+            self._trigger_countermeasures(handle, reason, tweet_data['timestamp_absolute'], sentiment)
+        # else:
+            # print(f"   [Clean] {handle}: {sentiment:.2f}")
+
+    def check_for_velocity_spike(self):
+        # Calculate tweets in the last minute
+        tweets_last_minute = len(self.recent_tweets)
+        
+        if tweets_last_minute >= config.VELOCITY_ALERT_THRESHOLD:
+            reason = f"Tweet Velocity Spike: {tweets_last_minute} tweets in the last minute."
+            print(f"[VELOCITY ALERT] {reason}")
+            self.db.log_alert(datetime.now().isoformat(), "VELOCITY_SPIKE", reason, "HIGH")
+            
+            # Trigger Layer 2 for a deeper look into the recent narrative
+            # We need a way to get the relevant query for the spike. For now, use default.
+            print(f"   >>> Triggering Layer 2 (analyze_narrative) for '{config.DEFAULT_SEARCH_QUERY}'")
+            analysis_results = analyze_narrative(config.DEFAULT_SEARCH_QUERY, self.db)
+            if analysis_results and analysis_results.get("suspicious_handles"):
+                for s_handle in analysis_results["suspicious_handles"]:
+                    print(f"      >>> Found suspicious handle '{s_handle}' from Layer 2. Triggering Layer 3...")
+                    self._trigger_layer3_profiler(s_handle, "Suspicious from Layer 2 Analysis")
+
+
+    def _trigger_countermeasures(self, handle, reason, timestamp, sentiment):
+        # Log to Alerts Table
+        self.db.log_alert(timestamp, "SENTIMENT_SPIKE", f"{handle}: {reason} (Sentiment: {sentiment:.2f})", "MEDIUM")
+        
+        print(f"   >>> [COUNTERMEASURE] Logging incident for {handle}")
+        
+        # Potentially trigger Layer 3 for highly negative sentiment from specific users
+        if sentiment < -0.8: # Very strong negative sentiment
+            self._trigger_layer3_profiler(handle, "Very Strong Negative Sentiment")
+            
+    def _trigger_layer3_profiler(self, handle, trigger_reason):
+        print(f"      >>> Triggering Layer 3 (profile_user) for '{handle}' due to: {trigger_reason}")
+        profile_user(handle, self.db)
+
+
+def run_engine_loop():
+    engine = SentinelEngine()
+    
+    # Simple loop
+    try:
+        while True:
+            engine.process_stream()
+            time.sleep(1) # Small sleep to prevent busy-waiting
+    except KeyboardInterrupt:
+        print("[STOP] Engine stopping...")
+    finally:
+        engine.db.conn.close()
+        print("PostgreSQL connection closed.")
+
+if __name__ == "__main__":
+    run_engine_loop()

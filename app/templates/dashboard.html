@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentinelGraph | Terminal</title>
+    <link rel="stylesheet" href="/static/css/cyberpunk.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="p-4 sm:p-8">
+
+    <!-- Header -->
+    <div
+        class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-[#00ff41] pb-4">
+        <div>
+            <h1 class="text-3xl font-bold tracking-widest text-[#00ff41] flicker">
+                SENTINEL<span class="text-[#ff0040]">GRAPH</span> // TERMINAL
+            </h1>
+            <p class="text-xs font-mono text-gray-500 mt-1">
+                SECURE CONNECTION ESTABLISHED...
+            </p>
+        </div>
+        <div class="flex items-center gap-4 mt-4 md:mt-0">
+            <div class="flex items-center gap-2 border border-[#00ff41] px-3 py-1 bg-[#000]">
+                <span class="w-2 h-2 bg-[#00ff41] animate-pulse"></span>
+                <span class="text-xs font-mono text-[#00ff41]">LIVE_FEED_ALIVE</span>
+            </div>
+            <a href="/" class="text-xs font-mono text-gray-500 hover:text-white">[LOGOUT]</a>
+        </div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <!-- Card 1 -->
+        <div class="cyber-card">
+            <div class="stat-label text-gray-500 text-xs mb-1">TOTAL_PACKETS</div>
+            <div class="stat-val text-4xl font-bold text-[#00ff41]" id="kpi-tweets">0</div>
+        </div>
+
+        <!-- Card 2 -->
+        <div class="cyber-card">
+            <div class="stat-label text-gray-500 text-xs mb-1">TARGETS_TRACKED</div>
+            <div class="stat-val text-4xl font-bold text-[#00ff41]" id="kpi-users">0</div>
+        </div>
+
+        <!-- Card 3 -->
+        <div class="cyber-card" style="border-color: #ff0040;">
+            <div class="stat-label text-red-400 text-xs mb-1">BOT_NETWORKS</div>
+            <div class="stat-val text-4xl font-bold text-[#ff0040]" id="kpi-bots">0</div>
+        </div>
+
+        <!-- Card 4 (New) -->
+        <div class="cyber-card">
+            <div class="stat-label text-gray-500 text-xs mb-1">SYSTEM_LOAD</div>
+            <div class="stat-val text-4xl font-bold text-white flicker">12%</div>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left: Charts -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Velocity -->
+            <div class="cyber-card">
+                <h3 class="text-lg font-bold mb-4 text-[#00ff41] border-b border-[#00ff41] inline-block pr-4">
+                    /INGESTION_VELOCITY
+                </h3>
+                <canvas id="velocityChart" height="100"></canvas>
+            </div>
+
+            <!-- Narratives -->
+            <div class="cyber-card">
+                <h3 class="text-lg font-bold mb-4 text-[#00ff41] border-b border-[#00ff41] inline-block pr-4">
+                    /NARRATIVE_CLUSTERS
+                </h3>
+                <canvas id="narrativeChart" height="100"></canvas>
+            </div>
+        </div>
+
+        <!-- Right: Terminal Feed -->
+        <div class="cyber-card h-[600px] flex flex-col p-0 overflow-hidden">
+            <div class="p-4 border-b border-[#00ff41] bg-[#050505]">
+                <h3 class="text-lg font-bold text-[#ff0040]">/LIVE_INTERCEPTS</h3>
+            </div>
+            <div class="overflow-y-auto p-4 space-y-2 font-mono text-xs flex-1 bg-black" id="feed-container">
+                <div class="text-gray-500">
+                    > INITIALIZING STREAM...<br>
+                    > CONNECTING TO SENTINEL DATABASE...<br>
+                    > WAITING FOR PACKETS...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Custom Chart Theme ---
+        Chart.defaults.color = '#444';
+        Chart.defaults.borderColor = '#111';
+
+        const ctxVel = document.getElementById('velocityChart').getContext('2d');
+        const velocityChart = new Chart(ctxVel, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Packets/Min',
+                    data: [],
+                    borderColor: '#00ff41',
+                    backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                    borderWidth: 1,
+                    pointRadius: 2,
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: '#0a0a0a' }, ticks: { color: '#00ff41', font: { family: 'monospace' } } },
+                    x: { grid: { color: '#0a0a0a' }, ticks: { color: '#00ff41', font: { family: 'monospace' } } }
+                }
+            }
+        });
+
+        const ctxNarr = document.getElementById('narrativeChart').getContext('2d');
+        const narrativeChart = new Chart(ctxNarr, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Volume',
+                    data: [],
+                    backgroundColor: '#ff0040',
+                    borderColor: '#ff0040',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: '#0a0a0a' }, ticks: { color: '#00ff41', font: { family: 'monospace' } } },
+                    y: { grid: { display: false }, ticks: { color: '#00ff41', font: { family: 'monospace' } } }
+                }
+            }
+        });
+
+        // --- Data Fetcher ---
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                // Update KPIs
+                document.getElementById('kpi-tweets').innerText = data.kpi.tweets.toLocaleString();
+                document.getElementById('kpi-users').innerText = data.kpi.users.toLocaleString();
+                document.getElementById('kpi-bots').innerText = data.kpi.bots.toLocaleString();
+
+                // Update Charts
+                velocityChart.data.labels = data.volume_chart.labels;
+                velocityChart.data.datasets[0].data = data.volume_chart.data;
+                velocityChart.update();
+
+                narrativeChart.data.labels = data.narrative_chart.labels;
+                narrativeChart.data.datasets[0].data = data.narrative_chart.data;
+                narrativeChart.update();
+
+                // Update Feed
+                const feedContainer = document.getElementById('feed-container');
+                feedContainer.innerHTML = '';
+                data.feed.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'mb-3 border-l-2 border-[#333] pl-2 hover:border-[#00ff41] transition-colors';
+                    el.innerHTML = `
+                        <div class="flex justify-between text-[#00ff41] mb-1">
+                            <span>@${item.handle}</span>
+                            <span class="text-gray-600">${item.time}</span>
+                        </div>
+                        <div class="text-gray-300 break-words">${item.text}</div>
+                        ${item.narrative ? `<div class="mt-1 text-[10px] text-[#ff0040]">[DETECTED_NARRATIVE_ID: ${item.narrative}]</div>` : ''}
+                    `;
+                    feedContainer.appendChild(el);
+                });
+
+            } catch (error) {
+                console.error("Fetch error:", error);
+            }
+        }
+
+        refreshData();
+        setInterval(refreshData, 3000);
+    </script>
+</body>
+
+</html>

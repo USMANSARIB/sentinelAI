@@ -1,0 +1,27 @@
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Session Data (Playwright)
+session_data/
+browser_session.lock
+
+# Environments
+venv/
+env/
+.env
+
+# Data
+data/raw_json/
+data/processed_json/
+data/errors/
+logs/
+*.log
+*.tmp
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
